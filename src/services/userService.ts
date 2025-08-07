@@ -3,6 +3,11 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  getDocs,
+  collection,
+  query,
+  orderBy,
+  where,
   Timestamp,
 } from 'firebase/firestore';
 import { updateProfile, updatePassword } from 'firebase/auth';
@@ -16,7 +21,10 @@ export interface UserProfile {
   displayName: string;
   phoneNumber?: string;
   address?: string;
-  businessType: 'retail' | 'food' | 'service' | 'other';
+  businessType?: 'retail' | 'food' | 'service' | 'other'; // Optional - only for business users
+  businessName?: string; // For business users
+  businessAddress?: string; // For business users
+  role: 'admin' | 'user';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +34,7 @@ export interface UpdateProfileData {
   phoneNumber?: string;
   address?: string;
   businessType?: 'retail' | 'food' | 'service' | 'other';
+  role?: 'admin' | 'user';
 }
 
 export class UserService {
@@ -113,6 +122,9 @@ export class UserService {
       if (profileData.businessType !== undefined) {
         updateData.businessType = profileData.businessType;
       }
+      if (profileData.role !== undefined) {
+        updateData.role = profileData.role;
+      }
 
       const docRef = doc(db, this.COLLECTION_NAME, user.uid);
       await updateDoc(docRef, updateData as Partial<UserProfile>);
@@ -155,7 +167,7 @@ export class UserService {
     activeOffers: number;
   }> {
     try {
-      logger.info('Fetching user statistics:', userId);
+      logger.info('Fetching user statistics for:', userId);
       
       // Import services here to avoid circular dependencies
       const { ShopService } = await import('./shopService');
@@ -163,24 +175,108 @@ export class UserService {
       
       const [shops, offers] = await Promise.all([
         ShopService.getUserShops(userId),
-        OfferService.getUserOffers(userId),
+        OfferService.getUserOffers(userId)
       ]);
-
+      
       const activeOffers = offers.filter(offer => 
-        offer.isActive && new Date(offer.validTo) > new Date()
+        offer.isActive && offer.validTo >= new Date()
       ).length;
-
-      const stats = {
+      
+      return {
         totalShops: shops.length,
         totalOffers: offers.length,
-        activeOffers,
+        activeOffers
       };
-
-      logger.info('User statistics fetched:', stats);
-      return stats;
     } catch (error) {
       logger.error('Failed to fetch user statistics:', error as Error);
       throw new Error('Failed to fetch user statistics');
+    }
+  }
+
+  /**
+   * Get all users (admin only)
+   */
+  static async getAllUsers(): Promise<UserProfile[]> {
+    try {
+      logger.info('Fetching all users');
+      
+      const q = query(
+        collection(db, this.COLLECTION_NAME),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const users: UserProfile[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        users.push({
+          uid: doc.id,
+          ...data,
+          createdAt: data.createdAt.toDate(),
+          updatedAt: data.updatedAt.toDate(),
+        } as UserProfile);
+      });
+
+      logger.info(`Found ${users.length} total users`);
+      return users;
+    } catch (error) {
+      logger.error('Failed to fetch all users:', error as Error);
+      throw new Error('Failed to fetch users');
+    }
+  }
+
+  /**
+   * Get users by role (admin only)
+   */
+  static async getUsersByRole(role: 'admin' | 'user'): Promise<UserProfile[]> {
+    try {
+      logger.info('Fetching users by role:', role);
+      
+      const q = query(
+        collection(db, this.COLLECTION_NAME),
+        where('role', '==', role),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const users: UserProfile[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        users.push({
+          uid: doc.id,
+          ...data,
+          createdAt: data.createdAt.toDate(),
+          updatedAt: data.updatedAt.toDate(),
+        } as UserProfile);
+      });
+
+      logger.info(`Found ${users.length} users with role:`, role);
+      return users;
+    } catch (error) {
+      logger.error('Failed to fetch users by role:', error as Error);
+      throw new Error('Failed to fetch users by role');
+    }
+  }
+
+  /**
+   * Promote user to admin (admin only)
+   */
+  static async promoteToAdmin(userId: string): Promise<void> {
+    try {
+      logger.info('Promoting user to admin:', userId);
+      
+      const docRef = doc(db, this.COLLECTION_NAME, userId);
+      await updateDoc(docRef, {
+        role: 'admin',
+        updatedAt: Timestamp.fromDate(new Date()),
+      });
+
+      logger.info('User promoted to admin successfully:', userId);
+    } catch (error) {
+      logger.error('Failed to promote user to admin:', error as Error);
+      throw new Error('Failed to promote user to admin');
     }
   }
 }

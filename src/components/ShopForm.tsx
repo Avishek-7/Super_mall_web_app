@@ -1,24 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ShopFormData, ShopCategory } from '../types/shop';
+import type { Floor } from '../types/shop';
+import { CategoryService } from '../services/categoryService';
 import { logger } from '../utils/logger';
 
 interface ShopFormProps {
-  onSubmit: (data: ShopFormData) => Promise<void>;
-  initialData?: Partial<ShopFormData>;
-  categories: ShopCategory[];
+  onSubmit: (shopData: ShopFormData) => Promise<void>;
+  onCancel?: () => void;
   isLoading?: boolean;
+  initialData?: ShopFormData;
+  categories?: ShopCategory[];
 }
+
+// Demo service categories
+const serviceCategories: ShopCategory[] = [
+  { id: '1', name: 'Repair & Maintenance Services', icon: '🛠️' },
+  { id: '2', name: 'Beauty & Salon', icon: '💇' },
+  { id: '3', name: 'Consulting', icon: '💼' },
+  { id: '4', name: 'Cleaning Services', icon: '🧹' },
+  { id: '5', name: 'Health & Wellness', icon: '🏥' },
+  { id: '6', name: 'Education & Coaching', icon: '🎓' },
+  { id: '7', name: 'Legal Services', icon: '⚖️' },
+  { id: '8', name: 'Event Planning', icon: '🎉' },
+];
 
 export const ShopForm: React.FC<ShopFormProps> = ({
   onSubmit,
+  onCancel,
   initialData,
-  categories,
+  categories = [],
   isLoading = false,
 }) => {
+  // Use service categories as fallback if categories prop is empty
+  const availableCategories = categories.length > 0 ? categories : serviceCategories;
+  
   const [formData, setFormData] = useState<ShopFormData>({
     name: initialData?.name || '',
     address: initialData?.address || '',
     category: initialData?.category || '',
+    floor: initialData?.floor || '',
     phone: initialData?.phone || '',
     website: initialData?.website || '',
     description: initialData?.description || '',
@@ -26,6 +46,20 @@ export const ShopForm: React.FC<ShopFormProps> = ({
   });
 
   const [errors, setErrors] = useState<Partial<ShopFormData>>({});
+  const [floors, setFloors] = useState<Floor[]>([]);
+
+  useEffect(() => {
+    loadFloors();
+  }, []);
+
+  const loadFloors = async () => {
+    try {
+      const floorsData = await CategoryService.getAllFloors();
+      setFloors(floorsData);
+    } catch (error) {
+      logger.error('Failed to load floors:', error as Error);
+    }
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<ShopFormData> = {};
@@ -148,13 +182,34 @@ export const ShopForm: React.FC<ShopFormProps> = ({
               }`}
             >
               <option value="">Select category</option>
-              {categories.map((category) => (
+              {availableCategories.map((category) => (
                 <option key={category.id} value={category.name}>
                   {category.name}
                 </option>
               ))}
             </select>
             {errors.category && <p className="mt-1 text-xs sm:text-sm text-red-600">{errors.category}</p>}
+          </div>
+
+          {/* Floor */}
+          <div>
+            <label htmlFor="floor" className="block text-sm font-medium text-gray-700 mb-2">
+              Floor
+            </label>
+            <select
+              id="floor"
+              name="floor"
+              value={formData.floor}
+              onChange={handleInputChange}
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
+            >
+              <option value="">Select floor (optional)</option>
+              {floors.map((floor) => (
+                <option key={floor.id} value={floor.name}>
+                  {floor.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Phone */}
@@ -212,6 +267,7 @@ export const ShopForm: React.FC<ShopFormProps> = ({
         <div className="mt-6 flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4">
           <button
             type="button"
+            onClick={onCancel}
             className="px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-xl hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
           >
             Cancel
@@ -228,3 +284,5 @@ export const ShopForm: React.FC<ShopFormProps> = ({
     </form>
   );
 };
+
+// Optionally export demo categories for usage elsewhere

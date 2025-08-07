@@ -67,13 +67,27 @@ export class OfferService {
     try {
       logger.info('Fetching offers for user:', userId);
       
-      const q = query(
-        collection(db, this.COLLECTION_NAME),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
-      );
+      let querySnapshot;
       
-      const querySnapshot = await getDocs(q);
+      try {
+        // Try compound query first (requires index)
+        const q = query(
+          collection(db, this.COLLECTION_NAME),
+          where('userId', '==', userId),
+          orderBy('createdAt', 'desc')
+        );
+        querySnapshot = await getDocs(q);
+      } catch (indexError) {
+        logger.warn('Compound query failed, falling back to simple query:', indexError);
+        
+        // Fallback to simple query without orderBy
+        const q = query(
+          collection(db, this.COLLECTION_NAME),
+          where('userId', '==', userId)
+        );
+        querySnapshot = await getDocs(q);
+      }
+      
       const offers: Offer[] = [];
       
       querySnapshot.forEach((doc) => {
@@ -87,6 +101,9 @@ export class OfferService {
           updatedAt: data.updatedAt.toDate(),
         } as Offer);
       });
+
+      // Sort in memory if we used the simple query
+      offers.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
       logger.info(`Found ${offers.length} offers for user:`, userId);
       return offers;
@@ -152,23 +169,54 @@ export class OfferService {
         q = query(q, limit(limitCount));
       }
       
-      const querySnapshot = await getDocs(q);
+      let querySnapshot;
+      try {
+        // Try the compound query first
+        querySnapshot = await getDocs(q);
+      } catch (indexError) {
+        logger.warn('Compound query failed (possibly due to index building), trying simple query:', indexError);
+        // Fallback to simple query without orderBy
+        let fallbackQuery = query(
+          collection(db, this.COLLECTION_NAME),
+          where('isActive', '==', true)
+        );
+        
+        if (limitCount) {
+          fallbackQuery = query(fallbackQuery, limit(limitCount * 2)); // Get more to compensate for filtering
+        }
+        
+        querySnapshot = await getDocs(fallbackQuery);
+      }
+      
       const offers: Offer[] = [];
       
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        offers.push({
+        const offer = {
           id: doc.id,
           ...data,
           validFrom: data.validFrom.toDate(),
           validTo: data.validTo.toDate(),
           createdAt: data.createdAt.toDate(),
           updatedAt: data.updatedAt.toDate(),
-        } as Offer);
+        } as Offer;
+        
+        // Filter out expired offers if using fallback query
+        if (offer.validTo >= new Date()) {
+          offers.push(offer);
+        }
       });
 
-      logger.info(`Found ${offers.length} active offers`);
-      return offers;
+      // Sort by validTo if we used the fallback query
+      offers.sort((a, b) => a.validTo.getTime() - b.validTo.getTime());
+      
+      // Apply limit if specified and we have more offers than needed
+      const finalOffers = limitCount && offers.length > limitCount 
+        ? offers.slice(0, limitCount) 
+        : offers;
+
+      logger.info(`Found ${finalOffers.length} active offers`);
+      return finalOffers;
     } catch (error) {
       logger.error('Failed to fetch active offers:', error as Error);
       throw new Error('Failed to fetch active offers');

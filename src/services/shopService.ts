@@ -35,18 +35,28 @@ export class ShopService {
         description: shopData.description,
         image: typeof shopData.image === 'string' ? shopData.image : undefined,
         rating: 0,
-        coordinates: undefined,
         offers: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      const docRef = await addDoc(collection(db, this.COLLECTION_NAME), {
-        ...shop,
+      // Create document data, filtering out undefined values
+      const shopDocData = {
+        name: shop.name,
+        address: shop.address,
+        category: shop.category,
+        rating: shop.rating,
+        offers: shop.offers,
         userId,
         createdAt: Timestamp.fromDate(shop.createdAt),
         updatedAt: Timestamp.fromDate(shop.updatedAt),
-      });
+        ...(shop.phone && { phone: shop.phone }),
+        ...(shop.website && { website: shop.website }),
+        ...(shop.description && { description: shop.description }),
+        ...(shop.image && { image: shop.image }),
+      };
+
+      const docRef = await addDoc(collection(db, this.COLLECTION_NAME), shopDocData);
 
       logger.info('Shop created successfully:', docRef.id);
       return docRef.id;
@@ -63,13 +73,27 @@ export class ShopService {
     try {
       logger.info('Fetching shops for user:', userId);
       
-      const q = query(
-        collection(db, this.COLLECTION_NAME),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
-      );
+      let querySnapshot;
       
-      const querySnapshot = await getDocs(q);
+      try {
+        // Try compound query first (requires index)
+        const q = query(
+          collection(db, this.COLLECTION_NAME),
+          where('userId', '==', userId),
+          orderBy('createdAt', 'desc')
+        );
+        querySnapshot = await getDocs(q);
+      } catch (indexError) {
+        logger.warn('Compound query failed, falling back to simple query:', indexError);
+        
+        // Fallback to simple query without orderBy
+        const q = query(
+          collection(db, this.COLLECTION_NAME),
+          where('userId', '==', userId)
+        );
+        querySnapshot = await getDocs(q);
+      }
+      
       const shops: Shop[] = [];
       
       querySnapshot.forEach((doc) => {
@@ -81,6 +105,9 @@ export class ShopService {
           updatedAt: data.updatedAt.toDate(),
         } as Shop);
       });
+
+      // Sort in memory if we used the simple query
+      shops.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
       logger.info(`Found ${shops.length} shops for user:`, userId);
       return shops;

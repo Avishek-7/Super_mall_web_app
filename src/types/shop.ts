@@ -14,6 +14,7 @@ export interface Shop {
     lng: number;
   };
   offers?: Offer[];
+  userId?: string; // For shop ownership tracking
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +55,15 @@ export interface ShopFormData {
   image?: File | string;
 }
 
+export interface Floor {
+  id: string;
+  name: string;
+  description?: string;
+  order: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface OfferFormData {
   title: string;
   description: string;
@@ -71,7 +81,10 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
-  businessType: 'retail' | 'food' | 'service' | 'other';
+  businessType?: 'retail' | 'food' | 'service' | 'other'; // Optional - only for business users
+  businessName?: string; // For business users
+  businessAddress?: string; // For business users
+  role: 'admin' | 'user';
   phoneNumber?: string;
   address?: string;
   createdAt: Date;

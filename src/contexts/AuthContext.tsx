@@ -13,6 +13,9 @@ import type { UserProfile } from '../types/shop';
 import { logger } from '../utils/logger';
 import { AuthContext, type AuthContextType } from './AuthContextDef';
 
+// Re-export for easier imports
+export { AuthContext } from './AuthContextDef';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -27,11 +30,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user) {
         // Load user profile when user is authenticated
         try {
-          const profile = await UserService.getUserProfile(user.uid);
+          let profile = await UserService.getUserProfile(user.uid);
+          
+          // If profile doesn't exist, create a basic one
+          if (!profile) {
+            logger.info('Creating missing user profile for:', user.uid);
+            const basicProfile: UserProfile = {
+              uid: user.uid,
+              email: user.email || '',
+              displayName: user.displayName || '',
+              // Don't set businessType for existing users - they should be customers
+              role: 'user', // Default role for new users
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+            
+            await UserService.createUserProfile(basicProfile);
+            profile = basicProfile;
+          }
+          
           setUserProfile(profile);
         } catch (error) {
           logger.error('Failed to load user profile:', error as Error);
-          setUserProfile(null);
+          // Create a basic profile if all else fails
+          const fallbackProfile: UserProfile = {
+            uid: user.uid,
+            email: user.email || '',
+            displayName: user.displayName || '',
+            // Don't set businessType for fallback - they should be customers
+            role: 'user',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          setUserProfile(fallbackProfile);
         }
       } else {
         setUserProfile(null);
@@ -68,6 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: user.email || email,
         displayName: profileData.displayName || '',
         businessType: profileData.businessType || 'other',
+        role: profileData.role || 'user', // Default to user role
         createdAt: new Date(),
         updatedAt: new Date(),
         ...profileData

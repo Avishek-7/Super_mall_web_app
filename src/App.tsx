@@ -7,12 +7,16 @@ import { LoginPage } from './pages/login';
 import { RegisterPage } from './pages/register';
 import { DashboardPage } from './pages/dashboard';
 import { ComparePage } from './pages/compare';
+import { AdminPage } from './pages/admin';
+import { MyShopPage } from './pages/my-shop';
+import { AccessDenied } from './components/AccessDenied';
 
-// Protected Route Component
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading } = useAuth();
+// Business Route Component (for shop management access)
+const BusinessRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, userProfile, loading } = useAuth();
 
-  if (loading) {
+  // Show loading while auth is loading OR user exists but profile is not loaded yet
+  if (loading || (user && !userProfile)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -20,12 +24,52 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
 
-  return user ? <>{children}</> : <Navigate to="/login" />;
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  // Allow access to shop management for users who have business information (shop owners)
+  // but are not admins (shop owners are regular customers)
+  const hasBusiness = userProfile?.businessName && userProfile?.businessType;
+  const isNotAdmin = userProfile?.role !== 'admin';
+  
+  if (!hasBusiness || !isNotAdmin) {
+    return <AccessDenied />;
+  }
+
+  return <>{children}</>;
 };
 
-// Public Route Component (redirect to dashboard if already logged in)
+// Admin Route Component (for dashboard and admin panel access)
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, userProfile, loading } = useAuth();
+
+  // Show loading while auth is loading OR user exists but profile is not loaded yet
+  if (loading || (user && !userProfile)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  // Only allow access to admin features for admin users
+  const isAdmin = userProfile?.role === 'admin';
+  
+  if (!isAdmin) {
+    return <AccessDenied />;
+  }
+
+  return <>{children}</>;
+};
+
+// Public Route Component (redirect to appropriate page if already logged in)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -35,7 +79,20 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     );
   }
 
-  return !user ? <>{children}</> : <Navigate to="/dashboard" />;
+  if (user) {
+    // Redirect based on user type:
+    // - Admins go to dashboard 
+    // - Regular customers (including shop owners) go to home
+    const isAdmin = userProfile?.role === 'admin';
+    
+    if (isAdmin) {
+      return <Navigate to="/dashboard" />;
+    } else {
+      return <Navigate to="/" />;
+    }
+  }
+
+  return <>{children}</>;
 };
 
 function App() {
@@ -66,13 +123,29 @@ function App() {
               }
             />
 
-            {/* Protected Routes - require authentication */}
+            {/* Protected Routes - require authentication and specific access */}
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute>
+                <AdminRoute>
                   <DashboardPage />
-                </ProtectedRoute>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/my-shop"
+              element={
+                <BusinessRoute>
+                  <MyShopPage />
+                </BusinessRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminPage />
+                </AdminRoute>
               }
             />
 

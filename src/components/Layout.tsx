@@ -9,7 +9,7 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, title = 'Super Mall' }) => {
-  const { user, logout } = useAuth();
+  const { user, userProfile, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -71,16 +71,45 @@ export const Layout: React.FC<LayoutProps> = ({ children, title = 'Super Mall' }
               
               {user ? (
                 <>
-                  <Link
-                    to="/dashboard"
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                      isActive('/dashboard') 
-                        ? 'bg-blue-100 text-blue-700 shadow-md' 
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
-                    }`}
-                  >
-                    📊 Dashboard
-                  </Link>
+                  {/* Only show Dashboard for mall admins */}
+                  {userProfile?.role === 'admin' && (
+                    <Link
+                      to="/dashboard"
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                        isActive('/dashboard') 
+                          ? 'bg-blue-100 text-blue-700 shadow-md' 
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
+                      }`}
+                    >
+                      📊 Dashboard
+                    </Link>
+                  )}
+                  {/* Show Shop Management for shop owners */}
+                  {(userProfile?.businessName && userProfile?.businessType) && userProfile?.role !== 'admin' && (
+                    <Link
+                      to="/my-shop"
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                        isActive('/my-shop') 
+                          ? 'bg-green-100 text-green-700 shadow-md' 
+                          : 'text-gray-700 hover:bg-gray-100 hover:text-green-600'
+                      }`}
+                    >
+                      🏪 My Shop
+                    </Link>
+                  )}
+                  {/* Only show Admin Panel for actual mall admins */}
+                  {userProfile?.role === 'admin' && (
+                    <Link
+                      to="/admin"
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                        isActive('/admin') 
+                          ? 'bg-purple-100 text-purple-700 shadow-md' 
+                          : 'text-gray-700 hover:bg-purple-100 hover:text-purple-600'
+                      }`}
+                    >
+                      👑 Admin
+                    </Link>
+                  )}
                   <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-gray-200">
                     <div className="flex items-center space-x-2">
                       <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
@@ -163,17 +192,48 @@ export const Layout: React.FC<LayoutProps> = ({ children, title = 'Super Mall' }
                 
                 {user ? (
                   <>
-                    <Link
-                      to="/dashboard"
-                      className={`px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                        isActive('/dashboard') 
-                          ? 'bg-blue-100 text-blue-700' 
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      📊 Dashboard
-                    </Link>
+                    {/* Only show Dashboard for mall admins */}
+                    {userProfile?.role === 'admin' && (
+                      <Link
+                        to="/dashboard"
+                        className={`px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                          isActive('/dashboard') 
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        📊 Dashboard
+                      </Link>
+                    )}
+                    {/* Show Shop Management for shop owners */}
+                    {(userProfile?.businessName && userProfile?.businessType) && userProfile?.role !== 'admin' && (
+                      <Link
+                        to="/my-shop"
+                        className={`px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                          isActive('/my-shop') 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        🏪 My Shop
+                      </Link>
+                    )}
+                    {/* Only show Admin Panel for actual mall admins */}
+                    {userProfile?.role === 'admin' && (
+                      <Link
+                        to="/admin"
+                        className={`px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                          isActive('/admin') 
+                            ? 'bg-purple-100 text-purple-700' 
+                            : 'text-gray-700 hover:bg-purple-100'
+                        }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        👑 Admin
+                      </Link>
+                    )}
                     <div className="px-4 py-3 border-t border-gray-200 mt-2 pt-4 space-y-3">
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">

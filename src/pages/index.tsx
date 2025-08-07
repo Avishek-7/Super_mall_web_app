@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { OfferCard } from '../components/OfferCard';
+import { DemoDataInitializer } from '../components/DemoDataInitializer';
+import { DemoDataService } from '../services/demoDataService';
+import { useAuth } from '../hooks/useAuth';
 import type { Offer, Shop, ShopCategory } from '../types/shop';
+import type { Floor } from '../types/shop';
 import { ShopService } from '../services/shopService';
 import { OfferService } from '../services/offerService';
 import { CategoryService } from '../services/categoryService';
@@ -10,11 +14,17 @@ import { logger } from '../utils/logger';
 
 export const IndexPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, userProfile } = useAuth();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [categories, setCategories] = useState<ShopCategory[]>([]);
+  const [floors, setFloors] = useState<Floor[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedFloor, setSelectedFloor] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [viewingOffer, setViewingOffer] = useState<Offer | null>(null);
+  const [viewingShop, setViewingShop] = useState<Shop | null>(null);
+  const [showDemoInitializer, setShowDemoInitializer] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -22,15 +32,21 @@ export const IndexPage: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [fetchedOffers, fetchedShops, fetchedCategories] = await Promise.all([
+      const [fetchedOffers, fetchedShops, fetchedCategories, fetchedFloors] = await Promise.all([
         OfferService.getActiveOffers(6), // Get 6 featured offers
         ShopService.getAllShops(12), // Get 12 shops
         CategoryService.getAllCategories(),
+        CategoryService.getAllFloors(),
       ]);
 
       setOffers(fetchedOffers);
       setShops(fetchedShops);
       setCategories(fetchedCategories);
+      setFloors(fetchedFloors);
+
+      // Check if we should show demo initializer
+      const hasCompleteData = await DemoDataService.hasCompleteDemoData();
+      setShowDemoInitializer(!hasCompleteData);
     } catch (error) {
       logger.error('Failed to load homepage data:', error as Error);
     } finally {
@@ -38,18 +54,27 @@ export const IndexPage: React.FC = () => {
     }
   };
 
-  const filteredShops = selectedCategory === 'all' 
-    ? shops 
-    : shops.filter(shop => shop.category === selectedCategory);
+  const filteredShops = shops.filter(shop => {
+    const categoryMatch = selectedCategory === 'all' || shop.category === selectedCategory;
+    const floorMatch = selectedFloor === 'all' || shop.floor === selectedFloor;
+    return categoryMatch && floorMatch;
+  });
 
   const handleViewDetails = (offer: Offer) => {
     logger.info('View offer details:', offer.id);
-    // Navigate to offer details page
+    setViewingOffer(offer);
   };
 
   const handleShopView = (shop: Shop) => {
     logger.info('View shop details:', shop.id);
-    // Navigate to shop details page
+    setViewingShop(shop);
+  };
+
+  const scrollToShops = () => {
+    const shopsSection = document.getElementById('shops-section');
+    if (shopsSection) {
+      shopsSection.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   if (loading) {
@@ -86,7 +111,7 @@ export const IndexPage: React.FC = () => {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4">
                     <button
-                      onClick={() => setSelectedCategory('all')}
+                      onClick={scrollToShops}
                       className="px-6 sm:px-8 py-3 sm:py-4 bg-white text-blue-600 font-semibold rounded-xl hover:bg-blue-50 transform hover:scale-105 transition-all duration-200 shadow-lg"
                     >
                       🛍️ Browse Shops
@@ -130,6 +155,13 @@ export const IndexPage: React.FC = () => {
           </div>
         </section>
 
+        {/* Demo Data Section - Show if demo data is incomplete */}
+        {showDemoInitializer && (
+          <section>
+            <DemoDataInitializer onDataCreated={loadData} />
+          </section>
+        )}
+
         {/* Featured Offers */}
         <section className="mb-12 lg:mb-16">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
@@ -152,12 +184,23 @@ export const IndexPage: React.FC = () => {
               </div>
               <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No offers available yet</h3>
               <p className="text-gray-600 mb-6">Check back later for amazing deals!</p>
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                Create Your First Offer
-              </button>
+              {/* Show appropriate buttons based on user type */}
+              {user && userProfile?.role === 'admin' && (
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  Create Offers in Dashboard
+                </button>
+              )}
+              {user && (userProfile?.businessName && userProfile?.businessType) && userProfile?.role !== 'admin' && (
+                <button
+                  onClick={() => navigate('/my-shop')}
+                  className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white font-medium rounded-xl hover:from-green-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  Manage Your Shop
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -175,7 +218,7 @@ export const IndexPage: React.FC = () => {
         </section>
 
         {/* Categories Section */}
-        <section>
+        <section id="shops-section">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Shop by Category</h2>
           <div className="flex flex-wrap gap-2 mb-6">
             <button
@@ -202,6 +245,38 @@ export const IndexPage: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {/* Floor Filter */}
+          {floors.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Filter by Floor</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedFloor('all')}
+                  className={`px-3 sm:px-4 py-2 rounded-lg font-medium text-sm sm:text-base transition-all duration-200 ${
+                    selectedFloor === 'all'
+                      ? 'bg-purple-600 text-white shadow-md'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  All Floors
+                </button>
+                {floors.map((floor) => (
+                  <button
+                    key={floor.id}
+                    onClick={() => setSelectedFloor(floor.name)}
+                    className={`px-3 sm:px-4 py-2 rounded-lg font-medium text-sm sm:text-base transition-all duration-200 ${
+                      selectedFloor === floor.name
+                        ? 'bg-purple-600 text-white shadow-md'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    🏢 {floor.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           
           {/* Shops Grid */}
           {filteredShops.length === 0 ? (
@@ -209,9 +284,13 @@ export const IndexPage: React.FC = () => {
               <div className="text-gray-400 text-4xl mb-4">🏪</div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No shops found</h3>
               <p className="text-gray-600">
-                {selectedCategory === 'all' 
+                {selectedCategory === 'all' && selectedFloor === 'all'
                   ? 'No shops available at the moment.'
-                  : `No shops found in ${selectedCategory} category.`
+                  : selectedCategory !== 'all' && selectedFloor !== 'all'
+                  ? `No shops found in ${selectedCategory} category on ${selectedFloor} floor.`
+                  : selectedCategory !== 'all'
+                  ? `No shops found in ${selectedCategory} category.`
+                  : `No shops found on ${selectedFloor} floor.`
                 }
               </p>
             </div>
@@ -264,6 +343,229 @@ export const IndexPage: React.FC = () => {
           </div>
         </section>
       </div>
+
+      {/* View Offer Modal */}
+      {viewingOffer && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Offer Details</h2>
+              <button
+                onClick={() => setViewingOffer(null)}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Offer Header */}
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">{viewingOffer.title}</h3>
+                <div className="flex items-center space-x-3">
+                  <div className="bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full inline-block">
+                    {viewingOffer.category}
+                  </div>
+                  <div className={`text-sm px-3 py-1 rounded-full inline-block ${
+                    viewingOffer.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {viewingOffer.isActive ? 'Active' : 'Inactive'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Offer Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{viewingOffer.description}</p>
+              </div>
+
+              {/* Pricing Information */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {viewingOffer.originalPrice && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Original Price</label>
+                    <p className="text-lg font-semibold text-gray-500 line-through">₹{viewingOffer.originalPrice}</p>
+                  </div>
+                )}
+                {viewingOffer.discountedPrice && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Discounted Price</label>
+                    <p className="text-xl font-bold text-green-600">₹{viewingOffer.discountedPrice}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Discount Information */}
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg">
+                <div className="grid grid-cols-2 gap-4">
+                  {viewingOffer.discountPercentage && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Discount Percentage</label>
+                      <p className="text-lg font-bold text-green-600">{viewingOffer.discountPercentage}% OFF</p>
+                    </div>
+                  )}
+                  {viewingOffer.originalPrice && viewingOffer.discountedPrice && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">You Save</label>
+                      <p className="text-lg font-bold text-green-600">₹{viewingOffer.originalPrice - viewingOffer.discountedPrice}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Validity Period */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Validity Period</label>
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="flex items-center justify-between text-sm">
+                    <div>
+                      <span className="text-gray-600">From: </span>
+                      <span className="font-medium">{viewingOffer.validFrom.toLocaleDateString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">To: </span>
+                      <span className="font-medium">{viewingOffer.validTo.toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Terms and Conditions */}
+              {viewingOffer.termsAndConditions && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Terms & Conditions</label>
+                  <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">{viewingOffer.termsAndConditions}</p>
+                </div>
+              )}
+
+              {/* Timestamps */}
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Created</label>
+                  <p className="text-gray-600 text-sm">{viewingOffer.createdAt.toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Updated</label>
+                  <p className="text-gray-600 text-sm">{viewingOffer.updatedAt.toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setViewingOffer(null)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Shop Modal */}
+      {viewingShop && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Shop Details</h2>
+              <button
+                onClick={() => setViewingShop(null)}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{viewingShop.name}</h3>
+                <div className="bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full inline-block">
+                  {viewingShop.category}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <p className="text-gray-900">{viewingShop.address}</p>
+              </div>
+
+              {viewingShop.phone && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <p className="text-gray-900">{viewingShop.phone}</p>
+                </div>
+              )}
+
+              {viewingShop.website && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                  <a 
+                    href={viewingShop.website.startsWith('http') ? viewingShop.website : `https://${viewingShop.website}`}
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    {viewingShop.website}
+                  </a>
+                </div>
+              )}
+
+              {viewingShop.description && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{viewingShop.description}</p>
+                </div>
+              )}
+
+              {viewingShop.floor && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Floor</label>
+                  <p className="text-gray-900">{viewingShop.floor}</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
+                <div className="flex items-center space-x-2">
+                  <div className="flex text-yellow-400">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <span key={star} className={star <= (viewingShop.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>
+                        ⭐
+                      </span>
+                    ))}
+                  </div>
+                  <span className="text-gray-600 text-sm">
+                    {viewingShop.rating ? `${viewingShop.rating}/5` : 'Not rated'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Created</label>
+                  <p className="text-gray-600 text-sm">{viewingShop.createdAt.toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Updated</label>
+                  <p className="text-gray-600 text-sm">{viewingShop.updatedAt.toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setViewingShop(null)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from '../components/Layout';
+import { DemoDataInitializer } from '../components/DemoDataInitializer';
+import { DemoDataService } from '../services/demoDataService';
 import { ShopService } from '../services/shopService';
 import { CategoryService } from '../services/categoryService';
 import type { Shop, ShopCategory } from '../types/shop';
@@ -11,6 +13,7 @@ export const ComparePage: React.FC = () => {
   const [selectedShops, setSelectedShops] = useState<Shop[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [showDemoInitializer, setShowDemoInitializer] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -25,6 +28,10 @@ export const ComparePage: React.FC = () => {
       ]);
       setShops(shopsData);
       setCategories(categoriesData);
+
+      // Check if we should show demo initializer
+      const hasCompleteData = await DemoDataService.hasCompleteDemoData();
+      setShowDemoInitializer(!hasCompleteData);
     } catch (error) {
       logger.error('Failed to load comparison data:', error as Error);
     } finally {
@@ -222,15 +229,22 @@ export const ComparePage: React.FC = () => {
         <div>
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Available Shops</h2>
           {filteredShops.length === 0 ? (
-            <div className="text-center py-8 sm:py-12">
-              <div className="text-gray-400 text-4xl mb-4">🏪</div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No shops found</h3>
-              <p className="text-gray-600 text-sm sm:text-base">
-                {selectedCategory === 'all' 
-                  ? 'No shops available for comparison.'
-                  : `No shops found in ${selectedCategory} category.`
-                }
-              </p>
+            <div className="space-y-6">
+              {/* Show demo data initializer if demo data is incomplete */}
+              {showDemoInitializer && (
+                <DemoDataInitializer onDataCreated={loadData} />
+              )}
+              
+              <div className="text-center py-8 sm:py-12">
+                <div className="text-gray-400 text-4xl mb-4">🏪</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No shops found</h3>
+                <p className="text-gray-600 text-sm sm:text-base">
+                  {selectedCategory === 'all' 
+                    ? 'No shops available for comparison.'
+                    : `No shops found in ${selectedCategory} category.`
+                  }
+                </p>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">

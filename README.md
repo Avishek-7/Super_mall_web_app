@@ -186,29 +186,20 @@ Test utilities and mocks are available in `src/test/` for consistent testing pat
 ![Login Page](./docs/screenshots/login.png)
 *Secure login with validation and modern UI*
 
-### 📊 User Dashboard
-![Dashboard](./docs/screenshots/dashboard.png)
-*Personalized dashboard with user-specific shops, offers, and statistics*
-
-### 🏪 Shop Management
-![Shop Management](./docs/screenshots/shop-management.png)
-*Complete CRUD operations for shops with filtering and search capabilities*
-
-### 🎁 Offer Management
-![Offer Cards](./docs/screenshots/offer-cards.png)
-*Beautiful offer cards with pricing, validity, and status indicators*
-
-### �️ Product Comparison
-![Product Comparison](./docs/screenshots/product-comparison.png)
-*Advanced product comparison with features and pricing analysis*
+![Registration Page](./docs/screenshots/registration.png)
+*User registration with form validation and secure signup process*
 
 ### ⚙️ Admin Panel
 ![Admin Panel](./docs/screenshots/admin-panel.png)
 *Comprehensive admin interface for platform management*
 
-### �📱 Mobile Responsive
-![Mobile View](./docs/screenshots/mobile-view.png)
-*Fully responsive design optimized for mobile devices*
+### � Shop Management
+![Add Shops Form](./docs/screenshots/add-shops-form.png)
+*Complete shop creation form with category and floor selection*
+
+### 🛍️ Shop Comparison
+![Compare Shops](./docs/screenshots/compare-shops.png)
+*Advanced shop comparison with features and details analysis*
 
 ### 🎯 Demo Data Features
 - **Comprehensive Demo Content:** 70+ categories, multiple shops, offers, and products
@@ -216,7 +207,7 @@ Test utilities and mocks are available in `src/test/` for consistent testing pat
 - **Realistic Scenarios:** Complete shopping mall ecosystem for demonstration
 - **Easy Setup:** Demo data automatically created for new users
 
-> **Note:** To add actual screenshots, record your app in action and save images to `./docs/screenshots/` folder
+> **Screenshots showcase the complete functionality of the Super Mall Web App with real data and professional UI design**
 
 ---
 

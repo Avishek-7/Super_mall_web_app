@@ -3,7 +3,6 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-// import { getAnalytics } from 'firebase/analytics';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -16,6 +15,15 @@ const firebaseConfig = {
   // measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
+// Validate that all required environment variables are present
+const requiredVars = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+const missingVars = requiredVars.filter(key => !firebaseConfig[key as keyof typeof firebaseConfig]);
+
+if (missingVars.length > 0) {
+  console.error('❌ Missing Firebase configuration:', missingVars);
+  throw new Error(`Missing Firebase environment variables: ${missingVars.join(', ')}`);
+}
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
@@ -23,6 +31,5 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-// export const analytics = getAnalytics(app);
 
 export default app;

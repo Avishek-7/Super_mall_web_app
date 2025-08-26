@@ -23,12 +23,14 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment variables
-.env
+# Environment variables (protect sensitive ones)
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
+
+# Note: .env with placeholder values is committed for setup instructions
 
 # Firebase
 .firebase/

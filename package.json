@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mock": "VITE_MOCK_MODE=true vite",
     "build": "tsc -b && vite build",
+    "build:demo": "VITE_MOCK_MODE=true tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",

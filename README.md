@@ -4,6 +4,16 @@
 
 ---
 
+## 🌐 **Live Application**
+
+### **🔗 Live Demo:** https://super-mall-web-app-32eaf.web.app
+
+**Demo Credentials:**
+- **Admin:** admin@supermall.com / Admin123!
+- **User:** user@supermall.com / User123!
+
+---
+
 ## 🚀 Project Overview
 
 Super Mall Web App is a responsive, feature-rich platform for managing shops, offers, products, categories, and users in a shopping mall environment. It supports both admin and user roles, with secure authentication, real-time data, comprehensive demo data for showcasing, and a beautiful, mobile-first UI.
@@ -19,6 +29,15 @@ Super Mall Web App is a responsive, feature-rich platform for managing shops, of
 - **User Dashboard:** Personalized dashboard with user-specific data
 - **Admin Panel:** Comprehensive management interface for all platform data
 - **Demo Data System:** Rich demo content for showcasing platform capabilities
+
+## 🔒 Security & Evaluation Notice
+
+**For Project Evaluators & Reviewers:**
+- This repository does NOT contain actual Firebase API keys for security reasons
+- Actual credentials are stored in `.env` files (gitignored)
+- For evaluation purposes, please see [`FIREBASE_SETUP.md`](./FIREBASE_SETUP.md) for setup instructions
+- Demo credentials can be provided upon request for evaluation
+- The application includes mock mode for basic functionality testing
 - **Responsive Design:** Mobile-first UI with TailwindCSS gradients and modern design
 - **Real-time Data:** Live updates with Firebase Firestore
 - **Comprehensive Testing:** 29+ automated tests with Vitest and React Testing Library
